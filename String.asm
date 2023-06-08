@@ -1,0 +1,203 @@
+ORG 100H
+
+.STACK 100
+
+.DATA
+INPUT1_PRMT DB 'INPUT STRING 1: ', '$'
+INPUT2_PRMT DB 'INPUT STRING 2: ', '$'
+WRONG_PRMT DB 'WRONG INPUT', '$'
+MISS_PRMT DB 'MISSING: ', '$'
+STR DB 50 DUP(?)
+STR2 DB 50 DUP(?)
+COUNT DW 0
+COUNT2 DW 0
+MISS_COUNT DW 0
+MISSING DB 50 DUP(?)
+COMMON DW 0
+TEN DB 10
+
+.CODE
+INPUT_STRING MACRO STRING, COUNTER
+    LOCAL INPUT, RETURN, WRONG, L1, COMPARE
+    PUSH AX
+    LEA SI, [STRING]
+    
+    INPUT:
+    MOV AH, 1
+    INT 21H
+    
+    CMP AL, 0DH
+    JE RETURN
+    
+    CMP AL, 20H
+    JE INPUT
+    
+    CMP AL, 41H
+    JL WRONG
+    
+    CMP AL, 5AH
+    JG COMPARE
+    JMP L1
+    
+    COMPARE:
+      CMP AL, 61H
+      JL WRONG
+      
+      CMP AL, 7AH
+      JG WRONG     
+    
+    L1:
+    MOV [SI], AL
+    INC SI
+    INC COUNTER
+    JMP INPUT
+    JMP RETURN
+    WRONG:
+        NEWLINE
+        MOV AH, 09H
+        LEA DX, WRONG_PRMT
+        INT 21H
+    RETURN:
+        NEWLINE    
+    POP AX
+ENDM
+
+NEWLINE MACRO
+        PUSH AX
+        PUSH DX
+        MOV AH, 2
+        MOV DL, 0AH
+        INT 21H
+        MOV AH, 2
+        MOV DL, 0DH
+        INT 21H
+        POP DX
+        POP AX 
+ENDM
+
+MAIN PROC
+    MOV AH, 09H
+    LEA DX, INPUT1_PRMT
+    INT 21H
+    INPUT_STRING STR, COUNT
+    
+    NEWLINE
+    
+    MOV AH, 09H
+    LEA DX, INPUT2_PRMT
+    INT 21H
+    INPUT_STRING STR2, COUNT2
+    
+    CALL COUNT_COMMON
+RET
+MAIN ENDP
+
+MISIN_B PROC 
+    LEA SI, STR
+    LEA DI, MISSING
+    MOV AX, 0
+    MOV DH, 0
+    OUTER:
+    MOV CX, COUNT2
+    LEA BP, STR2
+    CMP AX, COUNT
+    JE RETURN
+    INNER:
+       MOV BX, [SI]
+       CMP [BP], BL
+       JE NEXT
+       
+       INC BP
+       LOOP INNER
+       ;MOV DL, [BP]
+       MOV [DI], BL
+       INC DI
+       
+       NEXT:
+       INC SI
+       INC AX
+       INC MISS_COUNT
+       JMP OUTER    
+        
+    RETURN:
+    NEWLINE
+    MOV AH, 9
+    LEA DX, MISS_PRMT
+    INT 21H
+    CALL STR_OUTPUT
+    RET
+MISIN_B ENDP
+
+STR_OUTPUT PROC
+    MOV CX, MISS_COUNT
+    LEA DI, MISSING
+    
+    LOOPER:
+    MOV AH, 2
+    MOV DL, [DI]
+    INT 21H
+    INC DI
+    LOOP LOOPER
+    RET
+STR_OUTPUT ENDP
+
+COUNT_COMMON PROC
+    LEA SI, STR
+    
+    MOV AX, 0
+    OUTERL:
+    LEA DI, STR2
+    MOV CX, COUNT2
+    CMP AX, COUNT
+    JE RETURNL
+    INNERL:
+    MOV BL, [SI]
+    CMP [DI], BL
+    JE COMMON_INC
+    
+    INC DI
+    LOOP INNERL
+    
+    NEXTL:
+    INC AX
+    INC SI
+    JMP OUTERL
+    
+    COMMON_INC:
+    INC COMMON
+    JMP NEXTL
+    
+    RETURNL:
+    CALL DECOUT
+    RET
+COUNT_COMMON ENDP
+
+DECOUT PROC
+    XOR AX, AX
+    XOR DX, DX
+    MOV BX, COMMON
+    
+    INPUT:
+    MOV AX, BX
+    MOV CX, 0
+    
+    PUSH_REM:
+    DIV TEN
+    MOV DL, AH
+    PUSH DX
+    MOV AH, 0
+    INC CX
+    CMP AL, 0
+    JNZ PUSH_REM
+      
+    POPNOUT:
+    MOV AH, 2
+    POP DX
+    ADD DX, 30H
+    INT 21H
+    LOOP POPNOUT
+    
+    RET
+DECOUT ENDP    
+     
+    
